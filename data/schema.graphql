@@ -1,0 +1,53 @@
+type ArticuloModel {
+  id: String
+  codigo: String
+  descripcion: String
+  precio: Float
+  stock: Int
+}
+
+type ArticuloType {
+  articulos(descripcion: String!): [ArticuloModel]
+  codigo: String
+}
+
+input ClienteInput {
+  cedula: String!
+  nombre: String!
+  telefono: String
+}
+
+type ClienteModel {
+  cedula: String
+  nombre: String
+  telefono: String
+}
+
+type ClienteType {
+  cliente(cedula: String!): [ClienteModel]
+  codigo: String
+}
+
+input CompromisoMutationInput {
+  cliente: ClienteInput
+  clientMutationId: String
+}
+
+type CompromisoMutationPayload {
+  compromiso: CompromisoType
+  clientMutationId: String
+}
+
+type CompromisoType {
+  cliente: ClienteType
+  articulos: ArticuloType
+  codigo: String
+}
+
+type Mutation {
+  CompromisoMutation(input: CompromisoMutationInput!): CompromisoMutationPayload
+}
+
+type Query {
+  compromiso: CompromisoType
+}
