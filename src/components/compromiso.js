@@ -29,9 +29,15 @@ class CompromisoMutation extends Relay.Mutation {
     }];
   }
   getVariables() {
-    let { cliente } = this.props;
+    let { cliente, detalles, tipo } = this.props;
+    let compromiso = { tipo };
+    console.log(
+      compromiso
+    );
     return {
-      cliente
+      cliente,
+      detalles,
+      compromiso,
     };
   }
 }
@@ -49,9 +55,11 @@ class Cliente extends Component {
       this.refs.cedula.readOnly = true;
     }
   }
-  _handleBuscar() {
+  _handleBuscar(e) {
     let cedula = (this.refs.cedula.value) ? this.refs.cedula.value : '';
-    this.props.relay.setVariables({ cedula });
+    if (e.keyCode === 13 && cedula.length > 0) {
+      this.props.relay.setVariables({ cedula });
+    }
   }
   render() {
     let { cedula, nombre, telefono } = this.props.StateCliente;
@@ -251,16 +259,19 @@ class Compromiso extends Component {
     super(props);
     this.state = {
       cliente: {
-        cedula: '',
+        cedula: '19529584',
         nombre: '',
         telefono: '',
       },
       SeleccionArticulos: [],
+      total: 0,
+      tipo: 'venta',
     };
     this._handleCliente = this._handleCliente.bind(this);
     this._cargaCliente = this._cargaCliente.bind(this);
     this._handlerGuardar = this._handlerGuardar.bind(this);
     this._handleSelectArticulo = this._handleSelectArticulo.bind(this);
+    this._handleFactura = this._handleFactura.bind(this);
   }
   _handleCliente(e) {
     let { name, value} = e.target;
@@ -283,15 +294,16 @@ class Compromiso extends Component {
       case 'add':
         if (index === -1) {
           let { id, descripcion, precio, stock } = objeto;
-          SeleccionArticulos.push(
-            {
-              id,
-              descripcion,
-              precio,
-              stock,
-              cantidad: 1,
-            }
-          );
+          if (stock > 0)
+            SeleccionArticulos.push(
+              {
+                id,
+                descripcion,
+                precio,
+                stock,
+                cantidad: 1,
+              }
+            );
         } else {
           let { stock, cantidad } = SeleccionArticulos[index];
           if (stock > cantidad) {
@@ -312,6 +324,7 @@ class Compromiso extends Component {
         }
       break;
     }
+    this._imprimeTotal();
     this.setState({ SeleccionArticulos });
   }
   buscarArticuloID(objeto,SeleccionArticulos) {
@@ -324,13 +337,45 @@ class Compromiso extends Component {
     return i;
   }
   _handlerGuardar(e) {
+    let detalles = this._preSendDetalles();
+    let { cliente, tipo } = this.state;
     let operacion = Relay.Store.applyUpdate(
       new CompromisoMutation({
         compromiso: this.props.compromiso,
-        cliente: this.state.cliente,
+        cliente: cliente,
+        detalles,
+        tipo,
       })
     );
     operacion.commit();
+  }
+  _preSendDetalles() {
+    let { SeleccionArticulos } = this.state;
+    let newSeleccionArticulos = [];
+    newSeleccionArticulos = SeleccionArticulos.map(objeto => {
+      return {
+        cantidad: objeto.cantidad,
+        unidadPrecio: objeto.precio,
+        articuloId: parseInt(objeto.id,10),
+      }
+    });
+    return newSeleccionArticulos;
+  }
+  _handleFactura(e) {
+    let tipo = e.target.value;
+    this.setState({ tipo });
+    console.log(
+      tipo
+    );
+  }
+  _imprimeTotal() {
+    let { total, SeleccionArticulos } = this.state;
+    total = 0;
+    SeleccionArticulos.map(objeto => {
+      total += (objeto.cantidad * objeto.precio);
+      return objeto;
+    });
+    this.setState({ total });
   }
   render() {
     return (
@@ -340,8 +385,19 @@ class Compromiso extends Component {
         _handleCliente={this._handleCliente}
         _cargaCliente={this._cargaCliente}
         _handlerGuardar={this._handlerGuardar} />
+        <br/><br/>
+        <fieldset>
+          <legend>Factura</legend>
+          Venta: <input type="radio" name="operacion" value="venta"
+          defaultChecked={true}
+          onChange={this._handleFactura} />
+          &nbsp;&nbsp;
+          pedido: <input type="radio" name="operacion" value="pedido"
+          onChange={this._handleFactura} />
+        </fieldset>
         <Articulos articulos={this.props.compromiso.articulos}
           _handleSelectArticulo={this._handleSelectArticulo} />
+        <h1>Total:&nbsp;&nbsp;<em>{this.state.total}</em></h1>
         <Lista SeleccionArticulos={this.state.SeleccionArticulos} />
       </div>
     );

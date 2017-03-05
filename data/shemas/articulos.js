@@ -75,10 +75,7 @@ export const ArticuloInput = new GraphQLInputObjectType({
 export const ArticuloMutation = mutationWithClientMutationId({
   name: 'ArticuloMutation',
   inputFields: {
-    id: { type: new GraphQLNonNull(GraphQLInt) },
-    descripcion: { type: new GraphQLNonNull(GraphQLString) },
-    precio: { type: new GraphQLNonNull(GraphQLFloat) },
-    stock: { type: new GraphQLNonNull(GraphQLInt) },
+    articulo: { type: new GraphQLNonNull(ArticuloInput) },
   },
   outputFields: {
     articulos: {
@@ -86,7 +83,8 @@ export const ArticuloMutation = mutationWithClientMutationId({
       resolve: () => resolveArrayData(models.articulo.findAll()),
     }
   },
-  mutateAndGetPayload: ({id,descripcion,precio,stock}) => {
+  mutateAndGetPayload: ({articulo}) => {
+    let {id,descripcion,precio,stock} = articulo;
     models.articulo.findOne({where: {id}}).then((objeto) => {
       if (objeto) {
         return objeto.update({id,descripcion,precio,stock});

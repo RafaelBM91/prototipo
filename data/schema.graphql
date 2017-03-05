@@ -1,6 +1,5 @@
 type ArticuloModel {
   id: String
-  codigo: String
   descripcion: String
   precio: Float
   stock: Int
@@ -25,11 +24,26 @@ type ClienteModel {
 
 type ClienteType {
   cliente(cedula: String!): [ClienteModel]
+}
+
+input CompromisoInput {
+  tipo: String!
+}
+
+type CompromisoModel {
   codigo: String
+  total: Float
+  tipo: String
+  anulado: Boolean
+  createdAt: Date
+  cliente: ClienteModel
+  detalles: [DetalleModel]
 }
 
 input CompromisoMutationInput {
   cliente: ClienteInput
+  detalles: [DetalleInput]
+  compromiso: CompromisoInput
   clientMutationId: String
 }
 
@@ -41,13 +55,43 @@ type CompromisoMutationPayload {
 type CompromisoType {
   cliente: ClienteType
   articulos: ArticuloType
+  todo: [CompromisoModel]
+  movimientos(desde: Date!, hasta: Date!): [CompromisoModel]
   codigo: String
+}
+
+scalar Date
+
+input DetalleInput {
+  cantidad: Int!
+  unidadPrecio: Float!
+  articuloId: Int!
+}
+
+type DetalleModel {
+  codigo: String
+  cantidad: Int
+  unidadPrecio: Float
+  totalPrecio: Float
+  articulo: ArticuloModel
 }
 
 type Mutation {
   CompromisoMutation(input: CompromisoMutationInput!): CompromisoMutationPayload
 }
 
+type PagoModel {
+  codigo: String
+  pago: Float
+  createdAt: Date
+  compromiso: CompromisoModel
+}
+
+type PagoType {
+  pagos(desde: Date!, hasta: Date!): [PagoModel]
+}
+
 type Query {
   compromiso: CompromisoType
+  movimientos: PagoType
 }

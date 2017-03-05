@@ -13,3 +13,17 @@ export class CompromisoRoute extends Relay.Route {
     `},
   };
 }
+
+export class MovimientoRoute extends Relay.Route {
+  static routeName = 'MovimientoRoute';
+  static queries = {
+    movimientos: (Component) => {
+      return Relay.QL`
+      query {
+        movimientos {
+          ${Component.getFragment('movimientos')}
+        }
+      }
+    `},
+  };
+}

@@ -4,6 +4,7 @@ import {
 } from 'graphql';
 
 import { CompromisoType, CompromisoMutation } from './shemas/compromiso';
+import { PagoType } from './shemas/pago';
 
 const queryType = new GraphQLObjectType({
   name: 'Query',
@@ -11,6 +12,10 @@ const queryType = new GraphQLObjectType({
     compromiso: {
       type: CompromisoType,
       resolve: () => CompromisoType,
+    },
+    movimientos: {
+      type: PagoType,
+      resolve: () => PagoType,
     },
   })
 });

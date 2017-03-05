@@ -50,7 +50,7 @@ const Compromiso = sequelize.define('compromiso',{
     unique: true,
   },
   total: {
-    type: Sequelize.FLOAT,
+    type: Sequelize.FLOAT(8,2),
     allowNull: false,
   },
   tipo: {
@@ -64,9 +64,52 @@ const Compromiso = sequelize.define('compromiso',{
   },
 });
 
-Cliente.hasMany(Compromiso);
+Cliente.hasMany(Compromiso,{as:'clienteCedula'});
 
-// Articulo.hasMany(Detalle);
+const Detalle = sequelize.define('detalle',{
+  codigo: {
+    primaryKey: true,
+    type: Sequelize.UUID,
+    defaultValue: Sequelize.UUIDV1,
+    allowNull: false,
+    unique: true,
+  },
+  cantidad: {
+    type: Sequelize.FLOAT(8,2),
+    allowNull: false,
+  },
+  cantidad: {
+    type: Sequelize.INTEGER,
+    allowNull: false,
+  },
+  unidadPrecio: {
+    type: Sequelize.FLOAT(8,2),
+    allowNull: false,
+  },
+  totalPrecio: {
+    type: Sequelize.FLOAT(8,2),
+    allowNull: false,
+  },
+});
+
+Articulo.hasMany(Detalle,{as:'articuloId'});
+Compromiso.hasMany(Detalle,{as:'CompromisoCodigo'});
+
+const Pago = sequelize.define('pago',{
+  codigo: {
+    primaryKey: true,
+    type: Sequelize.UUID,
+    defaultValue: Sequelize.UUIDV1,
+    allowNull: false,
+    unique: true,
+  },
+  pago: {
+    type: Sequelize.FLOAT(8,2),
+    allowNull: false,
+  },
+});
+
+Compromiso.hasMany(Pago,{as:'CompromisoCodigo'});
 
 sequelize.sync();
 

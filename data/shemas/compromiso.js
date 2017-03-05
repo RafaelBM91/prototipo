@@ -7,6 +7,7 @@ import {
   GraphQLNonNull,
   GraphQLObjectType,
   GraphQLString,
+  GraphQLInputObjectType,
 } from 'graphql';
 
 import GraphQLDate from 'graphql-date';
@@ -21,9 +22,11 @@ import {
   mutationWithClientMutationId
 } from 'graphql-relay';
 
-import { ClienteType, ClienteInput } from './cliente';
+import { ClienteModel, ClienteType, ClienteInput } from './cliente';
 
-import { ArticuloType, ArticuloInput } from './articulos';
+import { ArticuloType } from './articulos';
+
+import { DetalleModel, DetalleInput } from './detalle';
 
 export const CompromisoModel = new GraphQLObjectType({
   name: 'CompromisoModel',
@@ -40,11 +43,20 @@ export const CompromisoModel = new GraphQLObjectType({
     anulado: {
       type: GraphQLBoolean,
     },
-    createAt: {
+    createdAt: {
       type: GraphQLDate,
     },
-    clienteCedula: {
-      type: GraphQLString,
+    cliente: {
+      type: ClienteModel,
+      resolve: (_,{}) => models.cliente.findOne({
+        where: {cedula: {$like: _.clienteCedula}}
+      }),
+    },
+    detalles: {
+      type: new GraphQLList(DetalleModel),
+      resolve: (_,{}) => resolveArrayData(models.detalle.findAll({
+        where: {compromisoCodigo: {$like: _.codigo}}
+      })),
     },
   })
 });
@@ -60,8 +72,24 @@ export const CompromisoType = new GraphQLObjectType({
       type: ArticuloType,
       resolve: () => ArticuloType,
     },
-    compromiso: {
+    todo: {
       type: new GraphQLList(CompromisoModel),
+      resolve: () => resolveArrayData(models.compromiso.findAll()),
+    },
+    movimientos: {
+      type: new GraphQLList(CompromisoModel),
+      args: {
+        desde: {
+          type: new GraphQLNonNull(GraphQLDate),
+        },
+        hasta: {
+          type: new GraphQLNonNull(GraphQLDate),
+        },
+      },
+      resolve: (_,{desde,hasta}) =>
+        resolveArrayData(models.compromiso.findAll({
+          where: {createdAt: {$gte: desde, $lte: hasta}}
+        })),
     },
     codigo: {
       type: GraphQLString,
@@ -70,12 +98,19 @@ export const CompromisoType = new GraphQLObjectType({
   }),
 });
 
+export const CompromisoInput = new GraphQLInputObjectType({
+  name: 'CompromisoInput',
+  fields: {
+    tipo: { type: new GraphQLNonNull(GraphQLString) },
+  }
+});
+
 export const CompromisoMutation = mutationWithClientMutationId({
   name: 'CompromisoMutation',
   inputFields: {
     cliente: { type: ClienteInput },
-    // articulos: { type: new GraphQLList(ArticuloInput) },
-
+    detalles: { type: new GraphQLList(DetalleInput) },
+    compromiso: { type: CompromisoInput },
   },
   outputFields: {
     compromiso: {
@@ -83,16 +118,60 @@ export const CompromisoMutation = mutationWithClientMutationId({
       resolve: () => CompromisoType,
     }
   },
-  mutateAndGetPayload: ({cliente}) => {
+  mutateAndGetPayload: ({cliente,detalles,compromiso}) => {
     let { cedula, nombre, telefono } = cliente;
+    let { tipo } = compromiso;
     models.cliente.findOne({where: {cedula}}).then((objeto) => {
-      if (objeto) {
-        return objeto.update({nombre,telefono});
-      } else {
-        return models.cliente.create({cedula,nombre,telefono});
-      }
+      let promiseCli = new Promise((resolve,reject) => {
+        if (objeto) {
+          resolve(objeto.update({nombre,telefono}));
+        } else {
+          resolve(models.cliente.create({cedula,nombre,telefono}));
+        }
+      }).then((resultado) => {
+        let total = 0;
+        new Promise((resolve,reject) => {
+          detalles.map(objeto => {
+            total += (objeto.cantidad * objeto.unidadPrecio);
+            return objeto;
+          });
+          resolve(total);
+        }).then((total) => {
+          models.compromiso.create({
+            total,
+            tipo,
+            clienteCedula: cedula,
+          }).then((objeto) => {
+            let { codigo } = objeto.dataValues;
+            detalles.map(objeto => {
+              models.detalle.create({
+                cantidad: objeto.cantidad,
+                unidadPrecio: objeto.unidadPrecio,
+                totalPrecio: (objeto.cantidad * objeto.unidadPrecio),
+                articuloId: objeto.articuloId,
+                compromisoCodigo: codigo,
+              }).then(() => {
+                models.articulo.findOne({
+                  where: {id: 
+                    {$eq: objeto.articuloId}
+                  }
+                }).then((articulo) => {
+                  let { stock } = articulo.dataValues;
+                  stock -= objeto.cantidad;
+                  articulo.update({stock});
+                });
+              });
+            });
+            if (tipo === "venta") {
+              models.pago.create({
+                pago: total,
+                compromisoCodigo: codigo,
+              })
+            }
+          });
+        });
+      });
     });
-
-    return true;
+    return cliente;
   },
 });
